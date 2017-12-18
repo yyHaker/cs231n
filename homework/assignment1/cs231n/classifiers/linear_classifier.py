@@ -1,8 +1,8 @@
 from __future__ import print_function
 
 import numpy as np
-from cs231n.classifiers.linear_svm import *
-from cs231n.classifiers.softmax import *
+from classifiers.linear_svm import *
+from classifiers.softmax import *
 from past.builtins import xrange
 
 

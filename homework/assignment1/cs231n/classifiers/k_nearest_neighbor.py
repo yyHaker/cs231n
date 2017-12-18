@@ -126,7 +126,7 @@ class KNearestNeighbor(object):
     # make use of (x - y)^2 = x^2 -2xy + y^2
     dists = np.multiply(np.dot(X, self.X_train.T), -2)  # (num_test, num_train)
     sq1 = np.sum(np.square(X), axis=1, keepdims=True)  # (num_test, 1)
-    sq2 = np.sum(np.square(self.X_train, axis=1))  # (num_train)
+    sq2 = np.sum(np.square(self.X_train), axis=1)  # (num_train)
     dists = np.add(dists, sq1)
     dists = np.add(dists, sq2)
     #########################################################################
@@ -169,7 +169,17 @@ class KNearestNeighbor(object):
       # Store this label in y_pred[i]. Break ties by choosing the smaller     #
       # label.                                                                #
       #########################################################################
-      y_pred[i] = np.argmax(np.bincount(closest_y))
+      # y_pred[i] = np.argmax(np.bincount(closest_y))
+      count = 0
+      label = 0
+      for j in closest_y:
+        tmp = 0
+        for kk in closest_y:
+          tmp += (kk == j)
+        if tmp > count:
+          count = tmp
+          label = j
+      y_pred[i] = label
       #########################################################################
       #                           END OF YOUR CODE                            # 
       #########################################################################
