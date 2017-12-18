@@ -137,3 +137,15 @@ plt.title('Cross-validation on k')
 plt.xlabel('k')
 plt.ylabel('Cross-validation accuracy')
 plt.show()
+
+# Based on the cross-validation results above, choose the best value for k,
+# retrain the classifier using all the training data, and test it on the test
+# data. You should be able to get above 28% accuracy on the test data.
+best_k = 5
+classifier = KNearestNeighbor()
+classifier.train(X_train, y_train)
+y_test_pred = classifier.predict(X_test, k=best_k)
+# Compute and display the accuracy
+num_correct = np.sum(y_test_pred == y_test)
+accuracy = float(num_correct) / num_test
+print('Got %d / %d correct => accuracy: %f' % (num_correct, num_test, accuracy))

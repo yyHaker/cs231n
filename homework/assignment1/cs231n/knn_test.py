@@ -143,3 +143,9 @@ One loop version took 110.905241 seconds
 No loop version took 1.839480 seconds
 所以看似简单直观的one loop速度最慢！而numpy矩阵操作最快！
 """
+"""
+小结： 
+1. 学会灵活利用numpy矩阵操作，计算速度确实大大加快了
+2. 学会控制运算过程中的矩阵维度，灵活使用np.reshape()和numpy slice操作、broadcast、dim参数等
+3. 灵活使用np.bincount(), np.argsort(), np.flatnonzero(), np.random.choice(), np.array_split()等库
+"""
