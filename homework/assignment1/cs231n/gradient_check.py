@@ -112,13 +112,12 @@ def grad_check_sparse(f, x, analytic_grad, num_checks=10, h=1e-5):
 
   for i in xrange(num_checks):
     ix = tuple([randrange(m) for m in x.shape])
-
     oldval = x[ix]
-    x[ix] = oldval + h # increment by h
-    fxph = f(x) # evaluate f(x + h)
-    x[ix] = oldval - h # increment by h
-    fxmh = f(x) # evaluate f(x - h)
-    x[ix] = oldval # reset
+    x[ix] = oldval + h  # increment by h
+    fxph = f(x)  # evaluate f(x + h)
+    x[ix] = oldval - h  # increment by h
+    fxmh = f(x)  # evaluate f(x - h)
+    x[ix] = oldval  # reset
 
     grad_numerical = (fxph - fxmh) / (2 * h)
     grad_analytic = analytic_grad[ix]

@@ -63,7 +63,7 @@ num_dev = 500
 # Our validation set will be num_validation points from the original
 # training set.
 mask = range(num_training, num_training + num_validation)
-X_val = X_train[mask]
+X_val = X_train[mask]   # validation set
 y_val = y_train[mask]
 
 # Our training set will be the first num_train points from the original
@@ -76,7 +76,7 @@ y_train = y_train[mask]
 # the training set.
 mask = np.random.choice(num_training, num_dev, replace=False)
 X_dev = X_train[mask]
-y_dev = y_train[mask]
+y_dev = y_train[mask]   # development set
 
 # We use the first num_test points of the original test set as our
 # test set.
@@ -131,10 +131,10 @@ print(X_train.shape, X_val.shape, X_test.shape, X_dev.shape)
 print("generate a random SVM weight matrix of small numbers and calculate the svm loss.......")
 # generate a random SVM weight matrix of small numbers
 W = np.random.randn(3073, 10) * 0.0001
-loss, grad = svm_loss_naive(W, X_dev, y_dev, 0.000005)
+loss, _ = svm_loss_naive(W, X_dev, y_dev, 0.000005)
 print('loss: %f' % (loss, ))
 
-print("check the gradient.........")
+print("check the naive gradient.........")
 # Once you've implemented the gradient, recompute it with the code below
 # and gradient check it with the function we provided for you
 # Compute the loss and its gradient at W.
@@ -143,6 +143,11 @@ loss, grad = svm_loss_naive(W, X_dev, y_dev, 0.0)
 # compare them with your analytically computed gradient. The numbers should match
 # almost exactly along all dimensions.
 f = lambda w: svm_loss_naive(w, X_dev, y_dev, 0.0)[0]
+grad_numerical = grad_check_sparse(f, W, grad)
+
+print("check the vectorized gradient......")
+loss, gradient = svm_loss_vectorized(W, X_dev, y_dev, 0.0)
+f = lambda w: svm_loss_vectorized(w, X_dev, y_dev, 0.0)[0]
 grad_numerical = grad_check_sparse(f, W, grad)
 # do the gradient check once again with regularization turned on
 # you didn't forget the regularization gradient did you?
@@ -171,13 +176,143 @@ print('difference: %f' % (loss_naive - loss_vectorized))
 tic = time.time()
 _, grad_naive = svm_loss_naive(W, X_dev, y_dev, 0.000005)
 toc = time.time()
-print('Naive loss and gradient: computed in %fs' % (toc - tic))
+print('Naive  gradient:%s,  computed in %fs' % (grad_naive, toc - tic))
 tic = time.time()
 _, grad_vectorized = svm_loss_vectorized(W, X_dev, y_dev, 0.000005)
 toc = time.time()
-print('Vectorized loss and gradient: computed in %fs' % (toc - tic))
+print('Vectorized  gradient:%s,  computed in %fs' % (grad_vectorized, toc - tic))
 # The loss is a single number, so it is easy to compare the values computed
 # by the two implementations. The gradient on the other hand is a matrix, so
 # we use the Frobenius norm to compare them.
 difference = np.linalg.norm(grad_naive - grad_vectorized, ord='fro')
 print('difference: %f' % difference)
+"""
+使用向量化实现速度提高了15倍
+"""
+
+print("run sgd to train the Linear SVM.....")
+# In the file linear_classifier.py, implement SGD in the function
+# LinearClassifier.train() and then run it with the code below.
+from classifiers import LinearSVM
+svm = LinearSVM()
+tic = time.time()
+loss_hist = svm.train(X_train, y_train, learning_rate=1e-7, reg=2.5e4,
+                      num_iters=1500, verbose=True)
+toc = time.time()
+print('That took %fs' % (toc - tic))
+print("visualize the loss value.......")
+# A useful debugging strategy is to plot the loss as a function of
+# iteration number:
+plt.plot(loss_hist)
+plt.xlabel('Iteration number')
+plt.ylabel('Loss value')
+plt.show()
+print("predict the train and validation.......")
+# Write the LinearSVM.predict function and evaluate the performance on both the
+# training and validation set
+y_train_pred = svm.predict(X_train)
+print('training accuracy: %f' % (np.mean(y_train == y_train_pred), ))
+y_val_pred = svm.predict(X_val)
+print('validation accuracy: %f' % (np.mean(y_val == y_val_pred), ))
+
+print("tune hyperparameters .........")
+# Use the validation set to tune hyperparameters (regularization strength and
+# learning rate). You should experiment with different ranges for the learning
+# rates and regularization strengths; if you are careful you should be able to
+# get a classification accuracy of about 0.4 on the validation set.
+learning_rates = [1e-7, 5e-5]
+regularization_strengths = [2.5e4, 5e4]
+# results is dictionary mapping tuples of the form
+# (learning_rate, regularization_strength) to tuples of the form
+# (training_accuracy, validation_accuracy). The accuracy is simply the fraction
+# of data points that are correctly classified.
+results = {}
+best_val = -1  # The highest validation accuracy that we have seen so far.
+best_svm = None  # The LinearSVM object that achieved the highest validation rate.
+
+################################################################################
+# TODO:                                                                        #
+# Write code that chooses the best hyperparameters by tuning on the validation #
+# set. For each combination of hyperparameters, train a linear SVM on the      #
+# training set, compute its accuracy on the training and validation sets, and  #
+# store these numbers in the results dictionary. In addition, store the best   #
+# validation accuracy in best_val and the LinearSVM object that achieves this  #
+# accuracy in best_svm.                                                        #
+#                                                                              #
+# Hint: You should use a small value for num_iters as you develop your         #
+# validation code so that the SVMs don't take much time to train; once you are #
+# confident that your validation code works, you should rerun the validation   #
+# code with a larger value for num_iters.                                      #
+################################################################################
+for lr in learning_rates:
+    for reg in regularization_strengths:
+        svm = LinearSVM()
+        loss_hist = svm.train(X_train, y_train, lr, reg, num_iters=1500, verbose=False)
+        y_train_pred = svm.predict(X_train)
+        train_accuracy = np.mean(y_train_pred == y_train)
+        y_val_pred = svm.predict(X_val)
+        val_accuracy = np.mean(y_val_pred == y_val)
+        results[(lr, reg)] = (train_accuracy, val_accuracy)
+        if val_accuracy > best_val:
+            best_val = val_accuracy
+            best_svm = svm
+        print("lr %e, reg %e done, the best validation accuracy is %f " % (lr, reg, best_val))
+################################################################################
+#                              END OF YOUR CODE                                #
+################################################################################
+
+# Print out results.
+print("result......")
+for lr, reg in sorted(results):
+    train_accuracy, val_accuracy = results[(lr, reg)]
+    print('lr %e reg %e train accuracy: %f val accuracy: %f' % (
+        lr, reg, train_accuracy, val_accuracy))
+print('best validation accuracy achieved during cross-validation: %f' % best_val)
+
+import math
+x_scatter = [math.log10(x[0]) for x in results]
+y_scatter = [math.log10(x[1]) for x in results]
+
+# plot training accuracy
+print("plotting training accuracy.....")
+marker_size = 100
+colors = [results[x][0] for x in results]
+plt.subplot(2, 1, 1)
+plt.scatter(x_scatter, y_scatter, marker_size, c=colors)
+plt.colorbar()
+plt.xlabel('log learning rate')
+plt.ylabel('log regularization strength')
+plt.title('CIFAR-10 training accuracy')
+
+# plot validation accuracy
+print("plotting validation accuracy.......")
+colors = [results[x][1] for x in results] # default size of markers is 20
+plt.subplot(2, 1, 2)
+plt.scatter(x_scatter, y_scatter, marker_size, c=colors)
+plt.colorbar()
+plt.xlabel('log learning rate')
+plt.ylabel('log regularization strength')
+plt.title('CIFAR-10 validation accuracy')
+plt.show()
+
+# Evaluate the best svm on test set
+print("evaluate the best svm.........")
+y_test_pred = best_svm.predict(X_test)
+test_accuracy = np.mean(y_test == y_test_pred)
+print('linear SVM on raw pixels final test set accuracy: %f' % test_accuracy)
+
+# Visualize the learned weights for each class.
+# Depending on your choice of learning rate and regularization strength, these may
+# or may not be nice to look at.
+w = best_svm.W[:-1, :]  # strip out the bias
+w = w.reshape(32, 32, 3, 10)
+w_min, w_max = np.min(w), np.max(w)
+classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+for i in range(10):
+    plt.subplot(2, 5, i + 1)
+    # Rescale the weights to be between 0 and 255
+    wimg = 255.0 * (w[:, :, :, i].squeeze() - w_min) / (w_max - w_min)
+    plt.imshow(wimg.astype('uint8'))
+    plt.axis('off')
+    plt.title(classes[i])
+plt.show()
