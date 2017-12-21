@@ -5,6 +5,7 @@ import matplotlib
 import numpy as np
 from scipy.ndimage import uniform_filter
 
+
 def extract_features(imgs, feature_fns, verbose=False):
   """
   Given pixel data for images and several feature functions that can operate on
