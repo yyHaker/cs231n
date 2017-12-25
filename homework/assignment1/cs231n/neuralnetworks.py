@@ -9,10 +9,12 @@ import matplotlib.pyplot as plt
 import time
 
 import torch
-from  torch.autograd.variable import Variable
+from torch.autograd.variable import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as Data
+
+USE_CUDA = True
 
 def get_CIFAR10_data(num_training=49000, num_validation=1000, num_test=1000, num_dev=500):
     """
@@ -74,17 +76,17 @@ print('dev labels shape: ', y_dev.shape)  # (500,)
 
 # 将numpy 转换为FloatTensor
 X_train = torch.FloatTensor(X_train)
-y_train = torch.IntTensor(y_train)
+y_train = torch.LongTensor(np.asarray(y_train, dtype='int64'))
 X_val = torch.FloatTensor(X_val)
-y_val = torch.IntTensor(y_val)
+y_val = torch.LongTensor(np.asarray(y_val, dtype='int64'))
 X_test = torch.FloatTensor(X_test)
-y_test = torch.IntTensor(y_test)
+y_test = torch.LongTensor(np.asarray(y_test, dtype='int64'))
 X_dev = torch.FloatTensor(X_dev)
-y_dev = torch.IntTensor(y_dev)
+y_dev = torch.LongTensor(np.asarray(y_dev, dtype='int64'))
 
 # parameters
-BATCH_SIZE = 128
-LR = 0.3
+BATCH_SIZE = 256
+LR = 0.003
 EPOCHS = 1000
 print("preparing the data......")
 # training set先转换成 torch 能识别的 Dataset
@@ -93,12 +95,22 @@ train_dataset = Data.TensorDataset(data_tensor=X_train, target_tensor=y_train)
 train_loader = Data.DataLoader(
     dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True
 )
+
 # validation set
-X_val = Variable(X_val)
-y_val = y_val.numpy().squeeze()   # convert to numpy array
+if USE_CUDA:
+    X_val = Variable(X_val).cuda()
+    y_val = y_val.cuda()
+else:
+    X_val = Variable(X_val)
+    y_val = y_val.numpy().squeeze()   # convert to numpy array
+
 # test set
-X_test = Variable(X_test)
-y_test = y_test.numpy().squeeze()  # convert to numpy array
+if USE_CUDA:
+    X_test = Variable(X_test).cuda()
+    y_test = y_test.cuda()
+else:
+    X_test = Variable(X_test)
+    y_test = y_test.numpy().squeeze()  # convert to numpy array
 
 print("X_val shape: ", X_val.data.shape)  # torch,  1000 x 3073
 print("y_val shape: ", y_val.shape)  # (1000, )
@@ -123,11 +135,13 @@ class NeuralNetworks(nn.Module):
 
 # get the network
 print("The network.....")
-net = NeuralNetworks(n_features=3073, hidden1=1000, hidden2=100, n_output=10)
+net = NeuralNetworks(n_features=3073, hidden1=2000, hidden2=100, n_output=10)
 print(net)
+if USE_CUDA:
+    net.cuda()
 
 print("training...........")
-optimizer = torch.optim.SGD(net.parameters(), lr=LR)
+optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=0.9)
 loss_func = torch.nn.CrossEntropyLoss()
 
 best_model = None
@@ -137,18 +151,22 @@ for epoch in range(EPOCHS):
     for step, (batch_x, batch_y) in enumerate(train_loader):
         b_x = Variable(batch_x)
         b_y = Variable(batch_y)
+        if USE_CUDA:
+            b_x = b_x.cuda()
+            b_y = b_y.cuda()
 
         out = net(b_x)  # forward
         loss = loss_func(out, b_y)  # calculate loss
-        loss_history.append(loss)
+        loss_history.append(loss.data[0])
         optimizer.zero_grad()  # clear gradients for this training step
         loss.backward()  # backpropagation, compute gradients
         optimizer.step()  # apply gradients
+
         if step % 50 == 0:
             val_out = net(X_val)
-            pred_y = torch.max(val_out, 1)[1].data.numpy().squeeze()  # val prediction result
-            val_accuracy = sum(pred_y == y_val) / float(y_val.size)
-            print('Epoch: ', epoch, '| Step: ', step, '| Train loss: %.4f' % loss.data.numpy(),
+            pred_y = torch.max(val_out, 1)[1].cuda().data.squeeze()  # val prediction result
+            val_accuracy = sum(pred_y == y_val) / float(y_val.size(0))
+            print('Epoch: ', epoch, '| Step: ', step, '| Train loss: %.4f' % loss.data[0],
                   '| Validation accuracy %.2f' % val_accuracy)
             if val_accuracy > best_val_accuracy:
                 best_val_accuracy = val_accuracy
@@ -164,8 +182,8 @@ plt.show()
 
 print("use the best model to predict the test data......")
 out = best_model(X_test)
-pred_y = torch.max(out, 1)[1].data.numpy().squeeze()
-test_accuracy = sum(pred_y == X_test) / float(X_test.size)
+pred_y = torch.max(out, 1)[1].cuda().data.squeeze()
+test_accuracy = sum(pred_y == X_test) / float(X_test.size(0))
 print("the test accuracy is: %.4f" % test_accuracy)
 
 
